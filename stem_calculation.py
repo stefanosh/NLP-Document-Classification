@@ -1,6 +1,7 @@
 import os
+from pathlib import Path
 
-directory_in_str = "/Users/heikki/Desktop/20news-bydate/20news-bydate-train"
+directory_in_str = str(Path(__file__).parent) + '/20news-bydate/20news-bydate-train'
 directory = os.fsencode(directory_in_str)
 
 count = 0 
