@@ -1,4 +1,5 @@
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import nltk
 import string
 import numpy as np
@@ -114,6 +115,17 @@ for key in idf_dic_test:
 # Calculate tf-idf weights of collection A with tf derived from that collection and idf dervided from collection E for these words 
 for key in idf_dic:
     test_frame[key] = test_frame[key].multiply(idf_dic[key])
+test_sparse = sparse.csr_matrix(test_frame.values)
+
+
+
+# Compare documents with similarity functions and classify each document to the category of it's most similar document
+
+
+result = cosine_similarity(test_sparse, train_sparse)
+
+pprint(result)
+pprint(result.shape)
 
 print("---Total execution time in minutes: %s ---" %
       ((time.time() - start_time)/60))
