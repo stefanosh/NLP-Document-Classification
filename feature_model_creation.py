@@ -84,20 +84,31 @@ for folder in os.listdir(directory_in_str):
             testDic[folder+"/"+file] = data
 
 
-# Sparse matrix containining tf values for all stems of all words in all documents
-cv = CountVectorizer()
-vectorizer = cv.fit(selectedColumns)
-tf_matrix = vectorizer.transform(testDic.values()).toarray()
+# Sparse matrix containining tf-idf weights for all stems of all words in all documents
+tfidf_test = TfidfVectorizer()
+tf_idf_matrix_test = tfidf_test.fit_transform(testDic.values()).toarray()
+
+# Vector containing only idf's of words
+idf_matrix_test = tfidf_test.idf_
 
 # List of all stems of all words in all files
-feature_names = cv.get_feature_names()
+feature_names = tfidf_test.get_feature_names()
+
+# Store idf values in a dictionary,only those
+idf_dic_test = {}
+index = 0
+for i in feature_names:
+    idf_dic_test[i] = idf_matrix_test[index]
+    index += 1
 
 # Create pandas data frame from tf_idf sparse matrix calculated above
-tf_frame = pd.DataFrame(tf_matrix, index=testDic, columns=feature_names)
+test_frame = pd.DataFrame(tf_idf_matrix_test, index=testDic, columns=feature_names)
 
-# Multiply each tf value with the idf calculated above - since its common with collection E files. tf_frame now has tf*idf calculated values
-for key in idf_dic:
-    tf_frame[key].multiply(idf_dic[key])
+# Divide each tf value with the idf calculated above - since its common with collection E files. tf_frame now has tf*idf calculated values
+for key in idf_dic_test:
+    test_frame[key] = test_frame[key].divide(idf_dic_test[key])
+
+pprint(test_frame["religion"])
 
 print("---Total execution time in minutes: %s ---" %
       ((time.time() - start_time)/60))
