@@ -95,6 +95,9 @@ feature_names = cv.get_feature_names()
 # Create pandas data frame from tf_idf sparse matrix calculated above
 tf_frame = pd.DataFrame(tf_matrix, index=testDic, columns=feature_names)
 
+# Multiply each tf value with the idf calculated above - since its common with collection E files. tf_frame now has tf*idf calculated values
+for key in idf_dic:
+    tf_frame[key].multiply(idf_dic[key])
 
 print("---Total execution time in minutes: %s ---" %
       ((time.time() - start_time)/60))
