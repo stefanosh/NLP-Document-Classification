@@ -70,6 +70,8 @@ train_frame = tf_idf_frame[selectedColumns]
 train_sparse = sparse.csr_matrix(train_frame.values)
 
 
+
+
 # Calculation of vectors for collection A
 # Store all documents in a dictionary(keys are the filenames) to use it as input in tf-idf calculation below
 testDic = {}
@@ -112,8 +114,6 @@ for key in idf_dic_test:
 # Calculate tf-idf weights of collection A with tf derived from that collection and idf dervided from collection E for these words 
 for key in idf_dic:
     test_frame[key] = test_frame[key].multiply(idf_dic[key])
-
-pprint(test_frame["religion"])
 
 print("---Total execution time in minutes: %s ---" %
       ((time.time() - start_time)/60))
