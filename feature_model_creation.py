@@ -85,14 +85,15 @@ for folder in os.listdir(directory_in_str):
 
 
 # Sparse matrix containining tf-idf weights for all stems of all words in all documents
-tfidf_test = TfidfVectorizer()
-tf_idf_matrix_test = tfidf_test.fit_transform(testDic.values()).toarray()
+cv = TfidfVectorizer()
+vectorizer = cv.fit(selectedColumns)
+tf_idf_matrix_test = vectorizer.transform(testDic.values()).toarray()
 
 # Vector containing only idf's of words
-idf_matrix_test = tfidf_test.idf_
+idf_matrix_test = vectorizer.idf_
 
 # List of all stems of all words in all files
-feature_names = tfidf_test.get_feature_names()
+feature_names = vectorizer.get_feature_names()
 
 # Store idf values in a dictionary,only those
 idf_dic_test = {}
@@ -104,9 +105,13 @@ for i in feature_names:
 # Create pandas data frame from tf_idf sparse matrix calculated above
 test_frame = pd.DataFrame(tf_idf_matrix_test, index=testDic, columns=feature_names)
 
-# Divide each tf value with the idf calculated above - since its common with collection E files. tf_frame now has tf*idf calculated values
+# Divide each tf-idf  value with the idf calculated above to get tf values
 for key in idf_dic_test:
     test_frame[key] = test_frame[key].divide(idf_dic_test[key])
+
+# Calculate tf-idf weights of collection A with tf derived from that collection and idf dervided from collection E for these words 
+for key in idf_dic:
+    test_frame[key] = test_frame[key].multiply(idf_dic[key])
 
 pprint(test_frame["religion"])
 
