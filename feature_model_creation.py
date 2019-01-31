@@ -121,6 +121,9 @@ test_sparse = sparse.csr_matrix(test_frame.values)
 # Each Test's vector is calculated torwards each Train's vector, and maxSimilartyIndex holds the train's index which is found as the most similar with the test's vector.
 maxSimilarity = []
 maxSimilartyIndex = []
+predictionDic = {}
+
+
 for i in range(0, test_frame.shape[0]):
     maxSimilarity.append(0)
     maxSimilartyIndex.append("")
@@ -131,13 +134,30 @@ for i in range(0, test_frame.shape[0]):
         if (resultt[j] > maxSimilarity[i]):
             maxSimilarity[i] = resultt[j]
             maxSimilartyIndex[i] = train_frame.index[j]
+    predictionDic[test_frame.index[i]] = maxSimilartyIndex[i]
+
+# Calculate correct cases of  document classification
+# Remove everything after '/' for both they key and its value. Goal is to compare: 
+#  'talk.religion.misc/84018': 'talk.religion.misc/82816' as  'talk.religion.misc' == 'talk.religion.misc'
+successCounter = 0
+for key in predictionDic:
+    text = key
+    head, sep, tail = text.partition('/')
+    key_string = head
+    text = predictionDic[key]
+    head, sep, tail = text.partition('/')
+    value_string = head
+    if key_string == value_string:
+        successCounter +=1
+
+total = len(predictionDic)
+percentage = (successCounter / total) * 100
 
 print(resultt)
 print(maxSimilartyIndex)
 print(test_frame.index)
+pprint(predictionDic)
 
-# pprint(result)
-# pprint(result.shape)
-
+print("---Successful classification rate: %s ---" % percentage)
 print("---Total execution time in minutes: %s ---" %
       ((time.time() - start_time)/60))
