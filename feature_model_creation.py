@@ -71,8 +71,6 @@ train_frame = tf_idf_frame[selectedColumns]
 train_sparse = sparse.csr_matrix(train_frame.values)
 
 
-
-
 # Calculation of vectors for collection A
 # Store all documents in a dictionary(keys are the filenames) to use it as input in tf-idf calculation below
 testDic = {}
@@ -106,26 +104,42 @@ for i in feature_names:
     index += 1
 
 # Create pandas data frame from tf_idf sparse matrix calculated above
-test_frame = pd.DataFrame(tf_idf_matrix_test, index=testDic, columns=feature_names)
+test_frame = pd.DataFrame(
+    tf_idf_matrix_test, index=testDic, columns=feature_names)
 
 # Divide each tf-idf  value with the idf calculated above to get tf values
 for key in idf_dic_test:
     test_frame[key] = test_frame[key].divide(idf_dic_test[key])
 
-# Calculate tf-idf weights of collection A with tf derived from that collection and idf dervided from collection E for these words 
+# Calculate tf-idf weights of collection A with tf derived from that collection and idf dervided from collection E for these words
 for key in idf_dic:
     test_frame[key] = test_frame[key].multiply(idf_dic[key])
 test_sparse = sparse.csr_matrix(test_frame.values)
 
 
-
 # Compare documents with similarity functions and classify each document to the category of it's most similar document
+# Each Test's vector is calculated torwards each Train's vector, and maxSimilartyIndex holds the train's index which is found as the most similar with the test's vector.
+maxSimilarity = []
+maxSimilartyIndex = []
+for i in range(0, test_frame.shape[0]):
+    maxSimilarity.append(0)
+    maxSimilartyIndex.append("")
+    for j in range(0, train_frame.shape[0]):
+        resultt = cosine_similarity(sparse.csr_matrix(
+            test_frame.iloc[i].values), sparse.csr_matrix(train_frame.iloc[j].values))[0][0]
+        if(resultt > maxSimilarity[i]):
+            maxSimilarity[i] = resultt
+            maxSimilartyIndex[i] = train_frame.index[j]
+    if(i == 2):
+        break
 
+#just done for 3 articles, in my test it has 0/3 accuracy - we have to change the above function also because it is too slow!
+print(maxSimilarity) 
+print(maxSimilartyIndex)
+print(test_frame.index[0:3])
 
-result = cosine_similarity(test_sparse, train_sparse)
-
-pprint(result)
-pprint(result.shape)
+# pprint(result)
+# pprint(result.shape)
 
 print("---Total execution time in minutes: %s ---" %
       ((time.time() - start_time)/60))
