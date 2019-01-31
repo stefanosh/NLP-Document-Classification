@@ -13,6 +13,8 @@ import random
 import itertools
 import pandas as pd
 from numpy import linalg as la
+import gc
+
 
 start_time = time.time()
 
@@ -76,6 +78,7 @@ selectedColumns = []
 for columnName in allCols[0:8000]:
     selectedColumns.append(columnName)
 
+
 # Store idf values in a dictionary but only those which belong to selectedColumns
 idf_dic = {}
 index = 0
@@ -135,6 +138,19 @@ for key in idf_dic_test:
 for key in idf_dic:
     test_frame[key] = test_frame[key].multiply(idf_dic[key])
 
+del trainDic
+del testDic
+del feature_names
+del idf_dic
+del idf_dic_test
+del tf_idf_matrix_test
+del allCols
+del selectedColumns
+del tf_idf_matrix
+del idf_matrix
+
+gc.collect()
+
 
 # Compare documents with similarity functions and classify each document to the category of it's most similar document
 
@@ -147,6 +163,12 @@ for i in range(0, test_frame.shape[0]):
     sorted_indexes = sorted_indexes[::-1]
     cosine_prediction_dic[test_frame.index[i]] = train_frame.index[sorted_indexes[0]]
 
+cosine_percentage =   calculate_percentage(cosine_prediction_dic)
+
+del cosine_prediction_dic
+del train_sparse
+del sorted_indexes
+gc.collect()
 
 #Tanimoto distance measure, d(x,y) = x.y / (|x|*|x|) + (|y|*|y|)- x*y
 tanimoto_prediction_dic ={}
@@ -168,7 +190,10 @@ for i in range(0, test_frame.shape[0]):
     sorted_indexes = sorted_indexes[::-1]
     tanimoto_prediction_dic[test_frame.index[i]] = train_frame.index[sorted_indexes[0]]
 
-cosine_percentage =   calculate_percentage(cosine_prediction_dic)
+del train_frame
+del test_frame
+gc.collect()
+
 tanimoto_percentage = calculate_percentage(tanimoto_prediction_dic)
 
 print("---Successful classification rate for cosine metric: %s" % cosine_percentage)
