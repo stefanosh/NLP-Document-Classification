@@ -19,6 +19,24 @@ start_time = time.time()
 # Disclaimer! Variable names train and test refer to Collection E (training set) & Collection A (test test)
 # Values: tf and idf refer to Term-Frequency and  Inverted Document Frequency respectively
 
+# Function to calculate correct cases of  document classification
+# Remove everything after '/' for both they key and its value. Goal is to compare: 
+# 'talk.religion.misc/84018': 'talk.religion.misc/82816' as  'talk.religion.misc' == 'talk.religion.misc'
+def calculate_percentage(dic):
+    success_counter = 0
+    for key in dic:
+        text = key
+        head, sep, tail = text.partition('/')
+        key_string = head
+        text = dic[key]
+        head, sep, tail = text.partition('/')
+        value_string = head
+        if key_string == value_string:
+            success_counter +=1
+    total = len(dic)
+    return ((success_counter/total) * 100)
+
+
 # Calculation of vectors for collection E
 # Store all documents in a dictionary(keys are the filenames) to use it as input in tf-idf calculation below
 trainDic = {}
@@ -33,11 +51,11 @@ for folder in os.listdir(directory_in_str):
             trainDic[folder+"/"+file] = data
 
 
-# Sparse matrix containining tf-idf weights for all stems of all words in all documents
+# Sparse matrix containining normalized tf-idf weights for all stems of all words in all documents
 tfidf = TfidfVectorizer()
 tf_idf_matrix = tfidf.fit_transform(trainDic.values()).toarray()
 
-# Vector containing only idf's of words
+# Vector containing only idf's of words.Will be used later for calculation of tf-idf weights for collection A
 idf_matrix = tfidf.idf_
 
 # List of all stems of all words in all files
@@ -58,7 +76,7 @@ selectedColumns = []
 for columnName in allCols[0:8000]:
     selectedColumns.append(columnName)
 
-# Store idf values in a dictionary,only those
+# Store idf values in a dictionary but only those which belong to selectedColumns
 idf_dic = {}
 index = 0
 for i in feature_names:
@@ -67,7 +85,6 @@ for i in feature_names:
     index += 1
 
 # Filter data frame only with the selected columns
-# CollectionE_dict contains as key the documents filename and values the tf-idfs weights for each word
 train_frame = tf_idf_frame[selectedColumns]
 train_sparse = sparse.csr_matrix(train_frame.values)
 
@@ -87,6 +104,7 @@ for folder in os.listdir(directory_in_str):
 
 
 # Sparse matrix containining tf-idf weights for all stems of all words in all documents
+# Calculate tf-idf of documents only for words which belong to selectedColumns
 cv = TfidfVectorizer()
 vectorizer = cv.fit(selectedColumns)
 tf_idf_matrix_test = vectorizer.transform(testDic.values()).toarray()
@@ -97,7 +115,7 @@ idf_matrix_test = vectorizer.idf_
 # List of all stems of all words in all files
 feature_names = vectorizer.get_feature_names()
 
-# Store idf values in a dictionary,only those
+# Store idf values in a dictionary
 idf_dic_test = {}
 index = 0
 for i in feature_names:
@@ -109,7 +127,7 @@ test_frame = pd.DataFrame(
     tf_idf_matrix_test, index=testDic, columns=feature_names)
 test_frame = test_frame[selectedColumns]   
 
-# Divide each tf-idf  value with the idf calculated above to get tf values
+# Divide each tf-idf  value with the idf(of collection A) calculated above to get tf values
 for key in idf_dic_test:
     test_frame[key] = test_frame[key].divide(idf_dic_test[key])
 
@@ -122,73 +140,36 @@ for key in idf_dic:
 
 # Cosine Similarity d(x,y) = x.y / (|x| * |y|)
 # Each Test's vector is calculated torwards each Train's vector, and maxSimilartyIndex holds the train's index which is found as the most similar with the test's vector.
-maxSimilarity = []
-maxSimilartyIndex = []
-predictionDic = {}
-
+cosine_prediction_dic = {}
 for i in range(0, test_frame.shape[0]):
-    maxSimilarity.append(0)
-    maxSimilartyIndex.append("")
-    # for j in range(0, train_frame.shape[0]):
-    result = cosine_similarity(sparse.csr_matrix(test_frame.iloc[i].values), train_sparse)[0]
-    for j in range(0, len(result)):
-        if (result[j] > maxSimilarity[i]):
-            maxSimilarity[i] = result[j]
-            maxSimilartyIndex[i] = train_frame.index[j]
-    predictionDic[test_frame.index[i]] = maxSimilartyIndex[i]
-
-# Calculate correct cases of  document classification
-# Remove everything after '/' for both they key and its value. Goal is to compare: 
-# 'talk.religion.misc/84018': 'talk.religion.misc/82816' as  'talk.religion.misc' == 'talk.religion.misc'
-cosine_success_counter = 0
-for key in predictionDic:
-    text = key
-    head, sep, tail = text.partition('/')
-    key_string = head
-    text = predictionDic[key]
-    head, sep, tail = text.partition('/')
-    value_string = head
-    if key_string == value_string:
-        cosine_success_counter +=1
-
-total = len(predictionDic)
-cosine_percentage = (cosine_success_counter / total) * 100
+    results = cosine_similarity(sparse.csr_matrix(test_frame.iloc[i].values), train_sparse)[0]
+    sorted_indexes = np.argsort(results)
+    sorted_indexes = sorted_indexes[::-1]
+    cosine_prediction_dic[test_frame.index[i]] = train_frame.index[sorted_indexes[0]]
 
 
 #Tanimoto distance measure, d(x,y) = x.y / (|x|*|x|) + (|y|*|y|)- x*y
 tanimoto_prediction_dic ={}
 for i in range(0, test_frame.shape[0]):
     vector1 = test_frame.iloc[i].values
-    result_list = []
+    results = []
     for j in range(0, train_frame.shape[0]):
         vector2 = train_frame.iloc[j].values
         dot_product = np.dot(vector1,vector2)
         norm1 = la.norm(vector1)
         norm2 = la.norm(vector2)
-        result = dot_product / norm1 + norm2 - dot_product
-        result_list.append(result)
+        single_result = dot_product / (norm1 + norm2 - dot_product)
+        results.append(single_result)
     
-    # Returns the sorted indexes
-    sorted_indexes_list = np.argsort(result_list)
-    tanimoto_prediction_dic[test_frame.index[i]] = train_frame.index[sorted_indexes_list[1199]]
+    # Result list has indexes with the same order as in train_frame, so np.argsort is used to return
+    # the sorted indexes of result_list and in this way  the index of the maximum value can be easily found
+    # Then, we can use it to assign the respective category name from train_frame to the current document in test_frame
+    sorted_indexes = np.argsort(results)
+    sorted_indexes = sorted_indexes[::-1]
+    tanimoto_prediction_dic[test_frame.index[i]] = train_frame.index[sorted_indexes[0]]
 
-# To-DO: if we have correct results put this block  in  a fuction to reuse it as it is also used above for cosine 
-# Calculate correct cases of  document classification
-# Remove everything after '/' for both they key and its value. Goal is to compare: 
-# 'talk.religion.misc/84018': 'talk.religion.misc/82816' as  'talk.religion.misc' == 'talk.religion.misc'
-tanimoto_success_counter = 0
-for key in tanimoto_prediction_dic:
-    text = key
-    head, sep, tail = text.partition('/')
-    key_string = head
-    text = tanimoto_prediction_dic[key]
-    head, sep, tail = text.partition('/')
-    value_string = head
-    if key_string == value_string:
-        tanimoto_success_counter +=1
-
-total = len(tanimoto_prediction_dic)
-tanimoto_percentage = (tanimoto_success_counter / total) * 100
+cosine_percentage =   calculate_percentage(cosine_prediction_dic)
+tanimoto_percentage = calculate_percentage(tanimoto_prediction_dic)
 
 print("---Successful classification rate for cosine metric: %s" % cosine_percentage)
 print("---Successful classification rate for tanimoto metric: %s" % tanimoto_percentage)
