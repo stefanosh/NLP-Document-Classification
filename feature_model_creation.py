@@ -124,19 +124,17 @@ maxSimilartyIndex = []
 for i in range(0, test_frame.shape[0]):
     maxSimilarity.append(0)
     maxSimilartyIndex.append("")
-    for j in range(0, train_frame.shape[0]):
-        resultt = cosine_similarity(sparse.csr_matrix(
-            test_frame.iloc[i].values), sparse.csr_matrix(train_frame.iloc[j].values))[0][0]
-        if(resultt > maxSimilarity[i]):
-            maxSimilarity[i] = resultt
+    # for j in range(0, train_frame.shape[0]):
+    resultt = cosine_similarity(sparse.csr_matrix(
+        test_frame.iloc[i].values), train_sparse)[0]
+    for j in range(0, len(resultt)):
+        if (resultt[j] > maxSimilarity[i]):
+            maxSimilarity[i] = resultt[j]
             maxSimilartyIndex[i] = train_frame.index[j]
-    if(i == 2):
-        break
 
-#just done for 3 articles, in my test it has 0/3 accuracy - we have to change the above function also because it is too slow!
-print(maxSimilarity) 
+print(resultt)
 print(maxSimilartyIndex)
-print(test_frame.index[0:3])
+print(test_frame.index)
 
 # pprint(result)
 # pprint(result.shape)
