@@ -12,6 +12,7 @@ from scipy.sparse import csr_matrix
 import random
 import itertools
 import pandas as pd
+from numpy import linalg as la
 
 start_time = time.time()
 
@@ -106,6 +107,7 @@ for i in feature_names:
 # Create pandas data frame from tf_idf sparse matrix calculated above
 test_frame = pd.DataFrame(
     tf_idf_matrix_test, index=testDic, columns=feature_names)
+test_frame = test_frame[selectedColumns]   
 
 # Divide each tf-idf  value with the idf calculated above to get tf values
 for key in idf_dic_test:
@@ -114,32 +116,31 @@ for key in idf_dic_test:
 # Calculate tf-idf weights of collection A with tf derived from that collection and idf dervided from collection E for these words
 for key in idf_dic:
     test_frame[key] = test_frame[key].multiply(idf_dic[key])
-test_sparse = sparse.csr_matrix(test_frame.values)
 
 
 # Compare documents with similarity functions and classify each document to the category of it's most similar document
+
+# Cosine Similarity d(x,y) = x.y / (|x| * |y|)
 # Each Test's vector is calculated torwards each Train's vector, and maxSimilartyIndex holds the train's index which is found as the most similar with the test's vector.
 maxSimilarity = []
 maxSimilartyIndex = []
 predictionDic = {}
 
-
 for i in range(0, test_frame.shape[0]):
     maxSimilarity.append(0)
     maxSimilartyIndex.append("")
     # for j in range(0, train_frame.shape[0]):
-    resultt = cosine_similarity(sparse.csr_matrix(
-        test_frame.iloc[i].values), train_sparse)[0]
-    for j in range(0, len(resultt)):
-        if (resultt[j] > maxSimilarity[i]):
-            maxSimilarity[i] = resultt[j]
+    result = cosine_similarity(sparse.csr_matrix(test_frame.iloc[i].values), train_sparse)[0]
+    for j in range(0, len(result)):
+        if (result[j] > maxSimilarity[i]):
+            maxSimilarity[i] = result[j]
             maxSimilartyIndex[i] = train_frame.index[j]
     predictionDic[test_frame.index[i]] = maxSimilartyIndex[i]
 
 # Calculate correct cases of  document classification
 # Remove everything after '/' for both they key and its value. Goal is to compare: 
-#  'talk.religion.misc/84018': 'talk.religion.misc/82816' as  'talk.religion.misc' == 'talk.religion.misc'
-successCounter = 0
+# 'talk.religion.misc/84018': 'talk.religion.misc/82816' as  'talk.religion.misc' == 'talk.religion.misc'
+cosine_success_counter = 0
 for key in predictionDic:
     text = key
     head, sep, tail = text.partition('/')
@@ -148,16 +149,47 @@ for key in predictionDic:
     head, sep, tail = text.partition('/')
     value_string = head
     if key_string == value_string:
-        successCounter +=1
+        cosine_success_counter +=1
 
 total = len(predictionDic)
-percentage = (successCounter / total) * 100
+cosine_percentage = (cosine_success_counter / total) * 100
 
-print(resultt)
-print(maxSimilartyIndex)
-print(test_frame.index)
-pprint(predictionDic)
 
-print("---Successful classification rate: %s ---" % percentage)
-print("---Total execution time in minutes: %s ---" %
-      ((time.time() - start_time)/60))
+#Tanimoto distance measure, d(x,y) = x.y / (|x|*|x|) + (|y|*|y|)- x*y
+tanimoto_prediction_dic ={}
+for i in range(0, test_frame.shape[0]):
+    vector1 = test_frame.iloc[i].values
+    result_list = []
+    for j in range(0, train_frame.shape[0]):
+        vector2 = train_frame.iloc[j].values
+        dot_product = np.dot(vector1,vector2)
+        norm1 = la.norm(vector1)
+        norm2 = la.norm(vector2)
+        result = dot_product / norm1 + norm2 - dot_product
+        result_list.append(result)
+    
+    # Returns the sorted indexes
+    sorted_indexes_list = np.argsort(result_list)
+    tanimoto_prediction_dic[test_frame.index[i]] = train_frame.index[sorted_indexes_list[1199]]
+
+# To-DO: if we have correct results put this block  in  a fuction to reuse it as it is also used above for cosine 
+# Calculate correct cases of  document classification
+# Remove everything after '/' for both they key and its value. Goal is to compare: 
+# 'talk.religion.misc/84018': 'talk.religion.misc/82816' as  'talk.religion.misc' == 'talk.religion.misc'
+tanimoto_success_counter = 0
+for key in tanimoto_prediction_dic:
+    text = key
+    head, sep, tail = text.partition('/')
+    key_string = head
+    text = tanimoto_prediction_dic[key]
+    head, sep, tail = text.partition('/')
+    value_string = head
+    if key_string == value_string:
+        tanimoto_success_counter +=1
+
+total = len(tanimoto_prediction_dic)
+tanimoto_percentage = (tanimoto_success_counter / total) * 100
+
+print("---Successful classification rate for cosine metric: %s" % cosine_percentage)
+print("---Successful classification rate for tanimoto metric: %s" % tanimoto_percentage)
+print("---Total execution time in minutes: %s ---" %((time.time() - start_time)/60))
