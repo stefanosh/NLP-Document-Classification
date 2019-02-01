@@ -54,7 +54,7 @@ for folder in os.listdir(directory_in_str):
 
 
 # Sparse matrix containining normalized tf-idf weights for all stems of all words in all documents
-tfidf = TfidfVectorizer()
+tfidf = TfidfVectorizer(min_df=0.001)
 tf_idf_matrix = tfidf.fit_transform(trainDic.values()).toarray()
 
 # Vector containing only idf's of words.Will be used later for calculation of tf-idf weights for collection A
@@ -174,12 +174,12 @@ gc.collect()
 def tanimoto_similarity(X, Y, norms):
     K = X * Y.T
     K = K.toarray()
-    return K/(la.norm(X.toarray())+norms-K)
+    return K/(la.norm(X.toarray())**2+norms-K)
 
 
 # Tanimoto distance measure, d(x,y) = x.y / (|x|*|x|) + (|y|*|y|)- x*y
 tanimoto_prediction_dic = {}
-norms_of_train = la.norm(train_sparse.toarray(), axis=1)
+norms_of_train = la.norm(train_sparse.toarray(), axis=1)**2
 for i in range(0, test_frame.shape[0]):
     results = tanimoto_similarity(sparse.csr_matrix(
         test_frame.iloc[i].values), train_sparse, norms_of_train)[0]

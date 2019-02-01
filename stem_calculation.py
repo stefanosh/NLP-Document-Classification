@@ -27,9 +27,9 @@ for folder in os.listdir(directory_in_str):
         count = 0
         for file in os.listdir(directory_in_str+"/"+folder+"/"+nested_folder):
             if folder == '20news-bydate-test':
-                limit = 40
+                limit = 100
             else:
-                limit = 60
+                limit = 800
             if count == limit:
                 break
             else:
