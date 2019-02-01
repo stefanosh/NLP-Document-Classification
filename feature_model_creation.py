@@ -14,16 +14,16 @@ import itertools
 import pandas as pd
 from numpy import linalg as la
 import gc
-
-
 start_time = time.time()
 
 # Disclaimer! Variable names train and test refer to Collection E (training set) & Collection A (test test)
 # Values: tf and idf refer to Term-Frequency and  Inverted Document Frequency respectively
 
 # Function to calculate correct cases of  document classification
-# Remove everything after '/' for both they key and its value. Goal is to compare: 
+# Remove everything after '/' for both they key and its value. Goal is to compare:
 # 'talk.religion.misc/84018': 'talk.religion.misc/82816' as  'talk.religion.misc' == 'talk.religion.misc'
+
+
 def calculate_percentage(dic):
     success_counter = 0
     for key in dic:
@@ -34,7 +34,7 @@ def calculate_percentage(dic):
         head, sep, tail = text.partition('/')
         value_string = head
         if key_string == value_string:
-            success_counter +=1
+            success_counter += 1
     total = len(dic)
     return ((success_counter/total) * 100)
 
@@ -77,7 +77,6 @@ allCols = sorted_df.columns.tolist()
 selectedColumns = []
 for columnName in allCols[0:8000]:
     selectedColumns.append(columnName)
-
 
 # Store idf values in a dictionary but only those which belong to selectedColumns
 idf_dic = {}
@@ -128,7 +127,7 @@ for i in feature_names:
 # Create pandas data frame from tf_idf sparse matrix calculated above
 test_frame = pd.DataFrame(
     tf_idf_matrix_test, index=testDic, columns=feature_names)
-test_frame = test_frame[selectedColumns]   
+test_frame = test_frame[selectedColumns]
 
 # Divide each tf-idf  value with the idf(of collection A) calculated above to get tf values
 for key in idf_dic_test:
@@ -151,51 +150,57 @@ del idf_matrix
 
 gc.collect()
 
-
 # Compare documents with similarity functions and classify each document to the category of it's most similar document
 
 # Cosine Similarity d(x,y) = x.y / (|x| * |y|)
 # Each Test's vector is calculated torwards each Train's vector, and maxSimilartyIndex holds the train's index which is found as the most similar with the test's vector.
 cosine_prediction_dic = {}
 for i in range(0, test_frame.shape[0]):
-    results = cosine_similarity(sparse.csr_matrix(test_frame.iloc[i].values), train_sparse)[0]
+    results = cosine_similarity(sparse.csr_matrix(
+        test_frame.iloc[i].values), train_sparse)[0]
     sorted_indexes = np.argsort(results)
     sorted_indexes = sorted_indexes[::-1]
-    cosine_prediction_dic[test_frame.index[i]] = train_frame.index[sorted_indexes[0]]
+    cosine_prediction_dic[test_frame.index[i]
+                          ] = train_frame.index[sorted_indexes[0]]
 
-cosine_percentage =   calculate_percentage(cosine_prediction_dic)
-
+cosine_percentage = calculate_percentage(cosine_prediction_dic)
 del cosine_prediction_dic
-del train_sparse
 del sorted_indexes
 gc.collect()
 
-#Tanimoto distance measure, d(x,y) = x.y / (|x|*|x|) + (|y|*|y|)- x*y
-tanimoto_prediction_dic ={}
+# *MAGIC HAPPENS HERE*
+
+
+def tanimoto_similarity(X, Y, norms):
+    K = X * Y.T
+    K = K.toarray()
+    return K/(la.norm(X.toarray())+norms-K)
+
+
+# Tanimoto distance measure, d(x,y) = x.y / (|x|*|x|) + (|y|*|y|)- x*y
+tanimoto_prediction_dic = {}
+norms_of_train = la.norm(train_sparse.toarray(), axis=1)
 for i in range(0, test_frame.shape[0]):
-    vector1 = test_frame.iloc[i].values
-    results = []
-    for j in range(0, train_frame.shape[0]):
-        vector2 = train_frame.iloc[j].values
-        dot_product = np.dot(vector1,vector2)
-        norm1 = la.norm(vector1)
-        norm2 = la.norm(vector2)
-        single_result = dot_product / (norm1 + norm2 - dot_product)
-        results.append(single_result)
-    
-    # Result list has indexes with the same order as in train_frame, so np.argsort is used to return
-    # the sorted indexes of result_list and in this way  the index of the maximum value can be easily found
-    # Then, we can use it to assign the respective category name from train_frame to the current document in test_frame
+    results = tanimoto_similarity(sparse.csr_matrix(
+        test_frame.iloc[i].values), train_sparse, norms_of_train)[0]
+    # # Result list has indexes with the same order as in train_frame, so np.argsort is used to return
+    # # the sorted indexes of result_list and in this way  the index of the maximum value can be easily found
+    # # Then, we can use it to assign the respective category name from train_frame to the current document in test_frame
     sorted_indexes = np.argsort(results)
     sorted_indexes = sorted_indexes[::-1]
-    tanimoto_prediction_dic[test_frame.index[i]] = train_frame.index[sorted_indexes[0]]
+    tanimoto_prediction_dic[test_frame.index[i]
+                            ] = train_frame.index[sorted_indexes[0]]
 
 del train_frame
 del test_frame
+del train_sparse
 gc.collect()
 
 tanimoto_percentage = calculate_percentage(tanimoto_prediction_dic)
 
-print("---Successful classification rate for cosine metric: %s" % cosine_percentage)
-print("---Successful classification rate for tanimoto metric: %s" % tanimoto_percentage)
-print("---Total execution time in minutes: %s ---" %((time.time() - start_time)/60))
+print("---Successful classification rate for cosine metric: %s" %
+      cosine_percentage)
+print("---Successful classification rate for tanimoto metric: %s" %
+      tanimoto_percentage)
+print("---Total execution time in minutes: %s ---" %
+      ((time.time() - start_time)/60))
