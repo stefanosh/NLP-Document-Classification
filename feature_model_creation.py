@@ -168,17 +168,19 @@ del cosine_prediction_dic
 del sorted_indexes
 gc.collect()
 
-# *MAGIC HAPPENS HERE*
 
-
+# Calculating tanimoto similarity, given a sparse vector X(its the vector for each text of collection A) and a sparse vector Y(sparse vector for all texts of E)
+# and norms is the precalculated norms for Y vector. Precalculated because they don't change for any iteration of X vectors, so would be a killer in performance to calculate them for every text of collection A
+# Returns an array containing the tanimoto of X with every row of Y
 def tanimoto_similarity(X, Y, norms):
     K = X * Y.T
     K = K.toarray()
     return K/(la.norm(X.toarray())**2+norms-K)
 
 
-# Tanimoto distance measure, d(x,y) = x.y / (|x|*|x|) + (|y|*|y|)- x*y
+# Tanimoto distance measure for every ttest vector, d(x,y) = x.y / (|x|*|x|) + (|y|*|y|)- x*y
 tanimoto_prediction_dic = {}
+# calculation of norms for train vector needed in tanimoto_similarity function
 norms_of_train = la.norm(train_sparse.toarray(), axis=1)**2
 for i in range(0, test_frame.shape[0]):
     results = tanimoto_similarity(sparse.csr_matrix(
